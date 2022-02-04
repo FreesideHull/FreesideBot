@@ -1,0 +1,13 @@
+{
+  "name": "freeside-discord-bot",
+  "version": "1.0.0",
+  "description": "Custom bot for the Freeside discord server.",
+  "main": "bot.js",
+  "author": "Lawrence Gibson",
+  "dependencies": {
+    "axios": "^0.25.0",
+    "cheerio": "^1.0.0-rc.10",
+    "discord-escape": "^1.0.0",
+    "discord.js": "^13.6.0"
+  }
+}
