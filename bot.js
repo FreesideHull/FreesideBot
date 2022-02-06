@@ -8,6 +8,9 @@ const client = new discord.Client({
     intents: ["GUILDS", "GUILD_MESSAGES", "DIRECT_MESSAGES"]
 });
 
+// time taken for public messages to expire and be deleted (ms).
+const MESSAGE_EXPIRE_TIME = process.env.MESSAGE_EXPIRE_TIME || 120000;
+
 if (!process.env.DISCORD_TOKEN) {
     console.log("Set DISCORD_TOKEN environment variable.");
     process.exit(1);
@@ -19,30 +22,63 @@ client.once("ready", () => {
 });
 
 client.on("messageCreate", message => {
+    // ignore bots
+    if (message.author.bot) return; 
     // deal with server text channels only
     if (!(message.channel instanceof discord.TextChannel)) return;
     // #news channel
     if (message.channel.name == "news") return moderateNewsMessage(message);
 });
 
+/**
+    Inform user with a text message. First tries to send message to the user's
+    DM channel. If this fails (user has it closed) then the message will be
+    sent in publicChannel. Exception is thrown forward if this fails still.
+    
+    Message sent in publicChannel will expire and be deleted after a set period
+    of time for cleanliness. See MESSAGE_EXPIRE_TIME.
+*/
+async function inform(user, publicChannel, content, tryingPublic = false) {
+    // tag user prefix
+    content = user.toString() + "\n" + content;
+    // channel to send in
+    const channel = (tryingPublic && publicChannel) || user.dmChannel ||
+        await user.createDM();
+    let message;
+    try {
+        message = await channel.send(content);
+    } catch (e) {
+        // message already tried through dms, public channel now also failed
+        if (tryingPublic) throw e;
+        // sending dm to user failed, try posting in public channel
+        message = await inform(user, publicChannel, content, true);  
+        // clean up public messages after time
+        await new Promise(resolve => setTimeout(resolve, MESSAGE_EXPIRE_TIME));
+        await message.delete();
+    }
+    return message;
+}
+
+/*
+    Remove a user's message with a reason.
+*/
 async function removeMessage(message, reason) {
-    const dmChannel = message.author.dmChannel ||
-        await message.author.createDM();
     /*
-        Send direct message to author with their quoted message and why it was
-        removed. 
-        
-        tag user (followed by newline)
+        Send message to author with their quoted message and why it was removed. 
+
         > message content quoted (replace "\n" with "\n>"to continue quote over
             multiple lines)
         ** This message was removed ** (reason)
-    */ 
-    await dmChannel.send(message.author.toString() + "\n" +
+    */
+    await inform(message.author, message.channel, 
         "> " + escape(message.content).replace(/\n/g, "\n> ") + "\n" +
         "**This message was removed.** " + reason);
     await message.delete();
 }
 
+/*
+    Called every time a message is posted into news channel.
+*/
 async function moderateNewsMessage(message) {
     /*
         The news channel can only contain links to news stories. A hyperlink to
@@ -64,6 +100,10 @@ async function moderateNewsMessage(message) {
     }
 }
 
+/*
+    Fetch Open Graph title from a web page by its URL. Returns null if not
+    found, page is not valid HTML or connection fails.
+*/
 async function fetchOgTitle(url) {
     let response;
     try {
