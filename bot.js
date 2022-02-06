@@ -8,16 +8,20 @@ const client = new discord.Client({
     intents: ["GUILDS", "GUILD_MESSAGES", "DIRECT_MESSAGES"]
 });
 
-// load token from file
-if (!fs.existsSync("token") || !fs.lstatSync("token").isFile()) {
-    console.log("Discord token file ( ./token ) missing.");
+if (!process.env.DISCORD_TOKEN) {
+    console.log("Set DISCORD_TOKEN environment variable.");
     process.exit(1);
 }
-const token = fs.readFileSync("token", "utf-8").split(/\r?\n\r?/)[0].trim();
-client.login(token);
+client.login(process.env.DISCORD_TOKEN.trim());
+
+client.once("ready", () => {
+    console.log("Bot is now running.");
+});
 
 client.on("messageCreate", message => {
+    // deal with server text channels only
     if (!(message.channel instanceof discord.TextChannel)) return;
+    // #news channel
     if (message.channel.name == "news") return moderateNewsMessage(message);
 });
 
@@ -28,7 +32,7 @@ async function removeMessage(message, reason) {
         Send direct message to author with their quoted message and why it was
         removed. 
         
-        @usertag (followed by newline)
+        tag user (followed by newline)
         > message content quoted (replace "\n" with "\n>"to continue quote over
             multiple lines)
         ** This message was removed ** (reason)
@@ -50,7 +54,7 @@ async function moderateNewsMessage(message) {
     if (title) {
         // message determined to be a news story       
         await message.startThread({
-            name: title
+            name: title.substr(0, 100)
         });
     } else {
         // not a news story, remove message
