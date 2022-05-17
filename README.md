@@ -1,3 +1,4 @@
+# Freeside Discord Bot
 Discord bot as used on https://discord.freeside.co.uk. Current use is filtering
 the `#news` channel to only allow news articles (posts containing a working
 web link) to be posted. A thread is automatically created for each article to
@@ -12,7 +13,8 @@ Settings are passed through environment variables.
 automatically deleted in miliseconds.
 
 ### Docker Usage:
-You will need a file to set environment variables in. Create one called `./env`, this will be ignored by Git.
+You will need a file to set environment variables in. Create one called `./env`,
+ this will be ignored by Git.
 ```sh
 git clone https://github.com/FreesideHull/FreesideBot
 cd ./FreesideBot
@@ -25,6 +27,6 @@ docker run -d --name freesidebot --env-file=./env freesidebot
 git clone https://github.com/FreesideHull/FreesideBot
 cd ./FreesideBot
 npm install
-export DISCORD_TOKEN=<bot token goes here> # use set DISCORD_TOKEN= under Windows
+export DISCORD_TOKEN=<bot token goes here> # use set DISCORD_TOKEN= on Windows
 node bot.js
 ```
