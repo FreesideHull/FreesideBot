@@ -8,7 +8,7 @@ const client = new discord.Client({
     intents: ["GUILDS", "GUILD_MESSAGES", "DIRECT_MESSAGES"]
 });
 
-// time taken for public messages to expire and be deleted (ms).
+// time taken for tempoary public messages to expire and be deleted (ms).
 const MESSAGE_EXPIRE_TIME = process.env.MESSAGE_EXPIRE_TIME || 120000;
 
 if (!process.env.DISCORD_TOKEN) {
@@ -86,7 +86,7 @@ async function moderateNewsMessage(message) {
         message posted which does not contain this will be rejected.
     */
     const match = message.content.match(/https?:\/\/[^ "]{2,}/);
-    const title = match && await fetchOgTitle(match[0]);
+    const title = match && await fetchNewsTitle(match[0]);
     if (title) {
         // message determined to be a news story       
         await message.startThread({
@@ -101,10 +101,10 @@ async function moderateNewsMessage(message) {
 }
 
 /*
-    Fetch Open Graph title from a web page by its URL. Returns null if not
-    found, page is not valid HTML or connection fails.
+    Fetch title of a news article given its URL. This title will be used for
+    creating a thread.
 */
-async function fetchOgTitle(url) {
+async function fetchNewsTitle(url) {
     let response;
     try {
         response = await axios.get(url, {
@@ -114,16 +114,20 @@ async function fetchOgTitle(url) {
                     bad news sites which may reject requests due to user agent.
                 */
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
-                    "AppleWebKit/537.36 (KHTML, like Gecko) " +
-                    "Chrome/97.0.4692.99 Safari/537.36"
+                    "AppleWebKit/537.36 (KHTML, like Gecko)" +
+                    "Chrome/101.0.4951.54 Safari/537.36"
             }
         });
     } catch {
-        return null;
+        return null; // request fails
     }
-    const selection = cheerio.load(response.data)("meta[property=og:title]");
-    if (selection.length == 0) {
-        return null;
-    }
-    return selection.attr("content");
+    const $ = cheerio.load(response.data)
+    // first try using opengraph title
+    const metaOgTitle = $("meta[property=og:title],meta[name=og:title]");
+    if (metaOgTitle.length != 0) return metaOgTitle.attr("content");
+    
+    // no opengraph title tag, so use the main title
+    const title = $("title");
+    if (title.length != 0 && title.text().length != 0) return title.text();
+    return null; // no title found
 }
