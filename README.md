@@ -10,7 +10,7 @@ Settings are passed through environment variables.
 `DISCORD_TOKEN=` Token used to authenticate the bot. [Required]
 
 `MESSAGE_EXPIRE_TIME=` Time it takes for a public message (at a user) to be
-automatically deleted in miliseconds.
+automatically deleted in miliseconds. Default is 2 minutes (12000ms).
 
 ### Docker Usage:
 You will need a file to set environment variables in. Create one called `./env`,
