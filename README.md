@@ -87,6 +87,6 @@ finds.
 #### API Use Example:
 Use cURL to post `Hello World!` to `#testing`. Authenticate as user `bob` with
 password `pass123`\.  
-`> curl -d "channel=testing" -d "message=Hello World! -u bob:pass123
+`> curl -d "channel=testing" -d "message=Hello World!" -u bob:pass123
 http://localhost:8000/send`  
 `{"posted":["https://discord.com/channels/57123123..."]}`
