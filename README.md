@@ -30,12 +30,14 @@ automatically deleted in ms.
 
 ### Docker Install
 You will need a file to set environment variables in. Create one called `./env`,
- this will be ignored by Git.
+ this will be ignored by Git. Change port 8000 to 
 ```sh
 git clone https://github.com/FreesideHull/FreesideBot
 cd ./FreesideBot
 docker build -t freesidebot .
-docker run -d --name freesidebot --env-file=./env freesidebot
+# change port forwarding from 8000:8000 if you've used different port
+docker run -d --restart=always -p 8000:8000 --name freesidebot \
+    --env-file=./env freesidebot
 ```
 
 ### Manual Install
