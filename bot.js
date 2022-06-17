@@ -21,6 +21,8 @@ const REST_API_SERVER_PORT = process.env.REST_API_SERVER_PORT || 8000;
 const REST_API_SERVER_USERNAME = process.env.REST_API_SERVER_USERNAME;
 const REST_API_SERVER_PASSWORD = process.env.REST_API_SERVER_PASSWORD;
 const PUBLIC_REPLY_DECAY_TIME = process.env.PUBLIC_REPLY_DECAY_TIME || 120000;
+const MAX_THREAD_TITLE_LENGTH = 100;
+const MAX_POST_LENGTH = 2000;
 
 // setup bot and rest api server
 botSetup(DISCORD_TOKEN).then(bot => {
@@ -78,7 +80,8 @@ async function handleNewsMessage (message) {
         console.log("Creating news discussion thread for %s named '%s'.",
             message.author.tag, title);
         await message.startThread({
-            name: title.substr(0, 100) // keep under thread limit
+            // keep under thread limit
+            name: title.substr(0, MAX_THREAD_TITLE_LENGTH)
         });
     } else {
     // not a news story, remove message
@@ -252,8 +255,8 @@ async function restApiSendMessage (bot, req, res) {
             );
             // if channel exists: send user message into it and return msg url
             if (channel) {
-                return channel.send(message).then(m => m.url)
-                    .catch(console.error);
+                return channel.send(message.substr(0, MAX_POST_LENGTH))
+                    .then(m => m.url).catch(console.error);
             }
             // return null / undefined for errors or if channel not found
             return null;
