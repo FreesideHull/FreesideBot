@@ -21,9 +21,21 @@
             "error",
             "double"
         ],
+        "space-before-blocks": [
+            "error",
+            "always"
+        ],
+        "arrow-spacing": [
+            "error",
+            {"before": true}
+        ],
+        "keyword-spacing": [
+            "error",
+            {"before": true}
+        ],
         "semi": [
             "error",
             "always"
-        ]
+        ]       
     }
 }
