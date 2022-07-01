@@ -57,6 +57,27 @@ function botSetup (token) {
     return new Promise((resolve, reject) => {
         bot.once("ready", () => {
             console.log("Discord bot is now up and running.");
+
+            // Updating stats
+            const guild = client.guilds.cache.get('364428045093699594');
+            setInterval(() =>{
+                // Update the general Discord Member Stat Channel
+                const memberCount = guild.members.cache.filter(m => !m.user.bot).size;
+                const memberChannel = guild.channels.cache.get('992471062258384956');
+                memberChannel.setName(`Discord Members: ${memberCount.toLocaleString()}`);
+
+                // Update the general Freesider Stat Channel
+                const freesiderCount = guild.members.cache.filter(m => !m.user.bot).size;
+                const freesideChannel = guild.roles.get(`366661244284829697`).members.size;
+                freesideChannel.setName(`Freesiders: ${memberCount.toLocaleString()}`);
+
+                // Update the general Freesider Stat Channel
+                const alumniCount = guild.members.cache.filter(m => !m.user.bot).size;
+                const alumniChannel = guild.roles.get(`457611334989905922`).members.size;
+                alumniChannel.setName(`Alumni: ${memberCount.toLocaleString()}`);
+            }, 600000);
+
+
             resolve(bot);
         });
         bot.once("error", e => reject(e));
