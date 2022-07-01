@@ -59,7 +59,7 @@ function botSetup (token) {
             console.log("Discord bot is now up and running.");
 
             // Updating stats
-            const guild = client.guilds.cache.get('364428045093699594');
+            const guild = bot.guilds.cache.get('364428045093699594');
             setInterval(() =>{
                 // Update the general Discord Member Stat Channel
                 const memberCount = guild.members.cache.filter(m => !m.user.bot).size;
