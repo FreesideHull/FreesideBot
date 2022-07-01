@@ -279,7 +279,7 @@ async function restApiSendMessage (bot, req, res) {
 }
 
 // Updating stats every 10 Minutes
-async function updateVoiceChannelStats (bot) {
+function updateVoiceChannelStats (bot) {
     const guild = bot.guilds.cache.get("364428045093699594");
     setInterval(() =>{
         // Update the general Discord Member Stat Channel
