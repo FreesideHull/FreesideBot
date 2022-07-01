@@ -69,12 +69,12 @@ function botSetup (token) {
                 // Update the general Freesider Stat Channel
                 const freesiderCount = guild.roles.get(`366661244284829697`).members.size;
                 const freesideChannel = guild.channels.cache.get('992471109297520780');
-                freesideChannel.setName(`Freesiders: ${memberCount.toLocaleString()}`);
+                freesideChannel.setName(`Freesiders: ${freesiderCount.toLocaleString()}`);
 
                 // Update the general Alumni Stat Channel
                 const alumniCount = guild.roles.get(`457611334989905922`).members.size;
                 const alumniChannel = guild.channels.cache.get('992471308262707370');
-                alumniChannel.setName(`Alumni: ${memberCount.toLocaleString()}`);
+                alumniChannel.setName(`Alumni: ${alumniCount.toLocaleString()}`);
             }, 600000);
 
 
