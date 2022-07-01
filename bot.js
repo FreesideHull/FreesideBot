@@ -67,13 +67,13 @@ function botSetup (token) {
                 memberChannel.setName(`Discord Members: ${memberCount.toLocaleString()}`);
 
                 // Update the general Freesider Stat Channel
-                const freesiderCount = guild.members.cache.filter(m => !m.user.bot).size;
-                const freesideChannel = guild.roles.get(`366661244284829697`).members.size;
+                const freesiderCount = guild.roles.get(`366661244284829697`).members.size;
+                const freesideChannel = guild.channels.cache.get('992471109297520780');
                 freesideChannel.setName(`Freesiders: ${memberCount.toLocaleString()}`);
 
-                // Update the general Freesider Stat Channel
-                const alumniCount = guild.members.cache.filter(m => !m.user.bot).size;
-                const alumniChannel = guild.roles.get(`457611334989905922`).members.size;
+                // Update the general Alumni Stat Channel
+                const alumniCount = guild.roles.get(`457611334989905922`).members.size;
+                const alumniChannel = guild.channels.cache.get('992471308262707370');
                 alumniChannel.setName(`Alumni: ${memberCount.toLocaleString()}`);
             }, 600000);
 
