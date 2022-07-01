@@ -57,28 +57,8 @@ function botSetup (token) {
     return new Promise((resolve, reject) => {
         bot.once("ready", () => {
             console.log("Discord bot is now up and running.");
-
-            // Updating stats
-            const guild = bot.guilds.cache.get('364428045093699594');
-            setInterval(() =>{
-                // Update the general Discord Member Stat Channel
-                const memberCount = guild.members.cache.filter(m => !m.user.bot).size;
-                const memberChannel = guild.channels.cache.get('992471062258384956');
-                memberChannel.setName(`Discord Members: ${memberCount.toLocaleString()}`);
-
-                // Update the general Freesider Stat Channel
-                const freesiderCount = guild.roles.get(`366661244284829697`).members.size;
-                const freesideChannel = guild.channels.cache.get('992471109297520780');
-                freesideChannel.setName(`Freesiders: ${freesiderCount.toLocaleString()}`);
-
-                // Update the general Alumni Stat Channel
-                const alumniCount = guild.roles.get(`457611334989905922`).members.size;
-                const alumniChannel = guild.channels.cache.get('992471308262707370');
-                alumniChannel.setName(`Alumni: ${alumniCount.toLocaleString()}`);
-            }, 600000);
-
-
             resolve(bot);
+            updateVoiceChannelStats(bot);
         });
         bot.once("error", e => reject(e));
     });
@@ -296,4 +276,25 @@ async function restApiSendMessage (bot, req, res) {
         posted.length, posted.join(", "));
         res.send({ posted });
     }
+}
+
+ // Updating stats every 10 Minutes
+async function updateVoiceChannelStats (bot) {
+            const guild = bot.guilds.cache.get("364428045093699594");
+            setInterval(() =>{
+                // Update the general Discord Member Stat Channel
+                const memberCount = guild.members.cache.filter(m => !m.user.bot).size;
+                const memberChannel = guild.channels.cache.get("992471062258384956");
+                memberChannel.setName(`Discord Members: ${memberCount.toLocaleString()}`);
+
+                // Update the general Freesider Stat Channel
+                const freesiderCount = guild.roles.get("366661244284829697").members.size;
+                const freesideChannel = guild.channels.cache.get("992471109297520780");
+                freesideChannel.setName(`Freesiders: ${freesiderCount.toLocaleString()}`);
+
+                // Update the general Alumni Stat Channel
+                const alumniCount = guild.roles.get("457611334989905922").members.size;
+                const alumniChannel = guild.channels.cache.get("992471308262707370");
+                alumniChannel.setName(`Alumni: ${alumniCount.toLocaleString()}`);
+            }, 600000);
 }
