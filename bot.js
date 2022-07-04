@@ -1,11 +1,7 @@
-const cheerio = require("cheerio");
-const axios = require("axios");
-const escape = require("discord-escape");
 const discord = require("discord.js");
-const express = require("express");
-const expressAuthBasic = require("express-basic-auth");
+const axios = require("axios");
+const cheerio = require("cheerio");
 require("console-stamp")(console); // add console timestamp and log level info
-
 
 // bot options (see README)
 if (!process.env.DISCORD_TOKEN) {
@@ -13,55 +9,117 @@ if (!process.env.DISCORD_TOKEN) {
     process.exit(1);
 }
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN.trim();
-const REST_API_SERVER_ENABLED = (process.env.REST_API_SERVER_ENABLED ||
-    "true").trim().match("^(true|on|y|1)") != null;
-const REST_API_SERVER_HOST = (process.env.REST_API_SERVER_HOST ||
-    "0.0.0.0").trim();
-const REST_API_SERVER_PORT = process.env.REST_API_SERVER_PORT || 8000;
-const REST_API_SERVER_USERNAME = process.env.REST_API_SERVER_USERNAME;
-const REST_API_SERVER_PASSWORD = process.env.REST_API_SERVER_PASSWORD;
 const PUBLIC_REPLY_DECAY_TIME = process.env.PUBLIC_REPLY_DECAY_TIME || 120000;
 const MAX_THREAD_TITLE_LENGTH = 100;
-const MAX_POST_LENGTH = 2000;
+const STATS_ENABLED = (process.env.STATS_ENABLED || "true").trim()
+    .match("^(true|on|y|1)") != null;
+const STATS_CATEGORY_NAME = (process.env.STATS_CATEGORY_NAME || "stats").trim();
+const STATS_UPDATE_INTERVAL = process.env.STATS_UPDATE_INTERVAL || 600000;
+const STATS_COUNT_ROLES = (process.env.STATS_COUNT_ROLES || "").split(",")
+    .map(name => name.trim().toLowerCase()).filter(name => name.length != 0);
 
-// setup bot and rest api server
-botSetup(DISCORD_TOKEN).then(bot => {
-    if (REST_API_SERVER_ENABLED) {
-        return restApiSetup(bot, REST_API_SERVER_PORT,
-            REST_API_SERVER_HOST, REST_API_SERVER_USERNAME,
-            REST_API_SERVER_PASSWORD);
-    }
-}).catch((e) => {
+// setup bot
+botSetup(DISCORD_TOKEN).catch((e) => {
     console.error(e);
     process.exit(1);
 });
 
 // BOT CODE...
 
-function botSetup (token) {
+/*
+    Connect bot and setup event handlers.
+*/
+async function botSetup (token) {
     const bot = new discord.Client({
-        intents: ["GUILDS", "GUILD_MESSAGES", "DIRECT_MESSAGES"]
+        intents: ["GUILDS", "GUILD_MESSAGES", "GUILD_MEMBERS", "DIRECT_MESSAGES"]
     });
 
     bot.on("messageCreate", m => {
     // ignore own and other bots
         if (m.author.bot) return;
         // deal with server text channels only
-        if (!(m.channel instanceof discord.TextChannel)) return;
+        if (m.channel.type != "GUILD_TEXT") return;
         // #news channel
         if (m.channel.name == "news") return handleNewsMessage(m);
     });
 
+    bot.on("guildCreate", guild => {
+        console.log(`Joined a new guild '${guild.name}' (${guild.id}).`);
+        guildStatsSetup(guild).catch(console.error);
+    });
+
     bot.login(token);
 
-    return new Promise((resolve, reject) => {
-        bot.once("ready", () => {
-            console.log("Discord bot is now up and running.");
-            resolve(bot);
-            updateVoiceChannelStats(bot);
-        });
-        bot.once("error", e => reject(e));
+    await new Promise((resolve, reject) => {
+        bot.once("ready", resolve);
+        bot.once("error", reject);
     });
+    console.log("Bot is now online.");
+    
+    await Promise.all(bot.guilds.cache.map(guild => guildStatsSetup(guild)));
+    
+    console.log("Ready.");
+}
+
+async function guildStatsSetup(guild) {
+    if (!STATS_ENABLED) return;
+    console.log("Setting up guild statistics (server stats shown as locked " +
+        `voice channels) on '${guild.name}' (${guild.id}).`); 
+    // get category named stats
+    const category = guild.channels.cache.find(c => c.type == "GUILD_CATEGORY"
+        && c.name.toLowerCase() == STATS_CATEGORY_NAME.toLowerCase()) ||
+        // or create if one doesn't exist
+        await guild.channels.create(STATS_CATEGORY_NAME, { 
+            name: STATS_CATEGORY_NAME,
+            type: "GUILD_CATEGORY",
+            permissionOverwrites: [{
+                id: guild.id,
+                deny: ["VIEW_CHANNEL"]
+            }]
+        });
+    // empty category, delete any channels inside it
+    await Promise.all(
+        guild.channels.cache.filter(c => c.parent == category && c != category)
+            .map(c => c.delete())
+    );
+    // ensure member list is populated
+    await guild.members.fetch();   
+    // setup voice channel to show total member count
+    statVoiceChannelSetup(guild, category, () => {
+        const members = guild.members.cache.filter(m => !m.user.bot);
+        return `Discord Members: ${members.size.toLocaleString()}`;
+    });
+    // get all roles for which a count should be displayed for
+    const roles = guild.roles.cache.filter(
+        role => STATS_COUNT_ROLES.includes(role.name.toLowerCase())
+    );
+    // setup voice channels to show member count for each specified role
+    await Promise.all(
+        roles.map(role => 
+            statVoiceChannelSetup(guild, category, () =>
+                `${role.name}: ${role.members.size.toLocaleString()}`
+            )
+        )
+    );
+}
+
+/*
+    Setup a locked voice channel and use it's name to display a statistic.
+    updateHandler function is called every STATS_UPDATE_INTERVAL miliseconds and
+    the string it returns is used for the channel's name (display text).
+*/
+async function statVoiceChannelSetup(guild, category, updateHandler) {
+    const channel = await guild.channels.create(updateHandler(), {
+        type: "GUILD_VOICE",
+        parent: category,
+        permissionOverwrites: [{
+            id: guild.id,
+            deny: ["VIEW_CHANNEL"]
+        }]
+    }
+    );
+    setInterval(() => channel.setName(updateHandler()).catch(console.error),
+        STATS_UPDATE_INTERVAL);
 }
 
 /*
@@ -174,127 +232,7 @@ async function removeMessage (message, reason) {
             multiple lines)
         ** This message was removed ** (reason)
     */
-    await inform(message.author,
-        "> " + escape(message.content).replace(/\n/g, "\n> ") + "\n" +
-        "**This message was removed.** " + reason, message.channel);
-}
-
-// REST API CODE...
-
-function restApiSetup (bot, port, host, username = null, password = null) {
-    const server = express();
-    const listener = server.listen(port, host);
-
-    // log requests
-    server.use((req, res, next) => {
-        let requestedWith = req.get("User-Agent") || "";
-        if (requestedWith) requestedWith = " with " + requestedWith;
-        console.log("%s - Requested %s %s://%s:%i%s%s.", req.ip, req.method,
-            req.protocol, req.hostname, listener.address().port, req.url,
-            requestedWith);
-        next();
-    });
-
-    // handle authentication if credential requirements are set
-    if (username && password) {
-        server.use(expressAuthBasic({
-            users: { [username]: password },
-            challenge: true,
-            unauthorizedResponse: req => (req.auth ? "Incorrect" : "Missing") +
-                " credentials."
-        }));
-    }
-
-    // allow handling url encoded or json encoded body
-    server.use(express.json());
-    server.use(express.urlencoded({ extended: true }));
-
-    // handle POST /send
-    server.post("/send", (req, res) => restApiSendMessage(bot, req, res));
-
-    // setup server listener
-    return new Promise((resolve, reject) => {
-        listener.once("listening", () => {
-            console.log("REST API server is listening on %s:%i.", host,
-                listener.address().port);
-            resolve(server);
-        });
-        listener.once("error", e => reject(e));
-    });
-}
-
-// handle POST /send requests
-async function restApiSendMessage (bot, req, res) {
-    // check channel parameter
-    const channelName = (req.body.channel || req.query.channel || "").trim()
-        .replace(/^#/, "").toLowerCase();
-    if (!channelName) {
-        res.status(400).send({ error: "Missing 'channel' parameter." });
-        return;
-    }
-
-    // check message parameter
-    const message = req.body.message || req.query.message;
-    if (!message) {
-        res.status(400).send({ error: "Missing 'message' parameter." });
-        return;
-    }
-
-    if (bot.guilds.cache.length == 0) {
-        res.status(500).send({ error: "Bot is not in any guilds." });
-        return;
-    }
-
-    // send out messages, posted will be an array of urls to messages which were
-    // successfully posted
-    const posted = await Promise.allSettled(
-    // for all guilds...
-        bot.guilds.cache.map(guild => {
-            // get text channel with name (specified in user request)
-            const channel = guild.channels.cache.find(
-                c => c.name == channelName && c instanceof discord.TextChannel
-            );
-            // if channel exists: send user message into it and return msg url
-            if (channel) {
-                return channel.send(message.substr(0, MAX_POST_LENGTH))
-                    .then(m => m.url).catch(console.error);
-            }
-            // return null / undefined for errors or if channel not found
-            return null;
-        })
-    // filter and map to get array of urls
-    ).then(results => results.filter(r => r.value).map(r => r.value));
-
-    if (posted.length == 0) {
-        res.status(500).send({
-            error: "No messages were posted successfully. " +
-            `Check text channel #${channelName} exists.`
-        });
-    } else {
-        console.log("%s - Posted message '%s' in #%s in %i guild(s). " +
-            "Message URLs: %s.", req.ip, req.body.message, channelName,
-        posted.length, posted.join(", "));
-        res.send({ posted });
-    }
-}
-
-// Updating stats every 10 Minutes
-function updateVoiceChannelStats (bot) {
-    const guild = bot.guilds.cache.get("364428045093699594");
-    setInterval(() =>{
-        // Update the general Discord Member Stat Channel
-        const memberCount = guild.members.cache.filter(m => !m.user.bot).size;
-        const memberChannel = guild.channels.cache.get("992471062258384956");
-        memberChannel.setName(`Discord Members: ${memberCount.toLocaleString()}`);
-
-        // Update the general Freesider Stat Channel
-        const freesiderCount = guild.roles.get("366661244284829697").members.size;
-        const freesideChannel = guild.channels.cache.get("992471109297520780");
-        freesideChannel.setName(`Freesiders: ${freesiderCount.toLocaleString()}`);
-
-        // Update the general Alumni Stat Channel
-        const alumniCount = guild.roles.get("457611334989905922").members.size;
-        const alumniChannel = guild.channels.cache.get("992471308262707370");
-        alumniChannel.setName(`Alumni: ${alumniCount.toLocaleString()}`);
-    }, 600000);
+    await inform(message.author, "> " +
+        discord.Util.escapeMarkdown(message.content).replace(/\n/g, "\n> ") +
+        `\n**This message was removed.** ${reason}`, message.channel);
 }
