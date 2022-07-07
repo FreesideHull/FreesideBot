@@ -16,7 +16,8 @@ const STATS_ENABLED = (process.env.STATS_ENABLED || "true").trim()
 const STATS_CATEGORY_NAME = (process.env.STATS_CATEGORY_NAME || "stats").trim();
 const STATS_UPDATE_INTERVAL = process.env.STATS_UPDATE_INTERVAL || 600000;
 const STATS_COUNT_ROLES = (process.env.STATS_COUNT_ROLES || "").split(",")
-    .map(name => name.trim().toLowerCase()).filter(name => name.length != 0);
+    .map(name => name.trim().toLowerCase())
+    .filter(name => name.length != 0);
 
 // setup bot
 botSetup(DISCORD_TOKEN).catch((e) => {
@@ -61,11 +62,39 @@ async function botSetup (token) {
     console.log("Ready.");
 }
 
+/*
+    Setup guild statistics display. Stats such as total member count, how many
+    members there are in certain roles, etc. are displayed as locked voice
+    channels.
+*/
 async function guildStatsSetup(guild) {
     if (!STATS_ENABLED) return;
     console.log("Setting up guild statistics (server stats shown as locked " +
         `voice channels) on '${guild.name}' (${guild.id}).`); 
-    // get category named stats
+    // get roles specified in by name in STATS_COUNT_ROLES
+    const roles = guild.roles.cache
+        .filter(role => STATS_COUNT_ROLES.includes(role.name.toLowerCase()));
+    // array of stats to show (functions returning stat string)
+    const statFuncs = [
+        // total member count function
+        () => "Discord Members: " + guild.members.cache
+            .filter(m => !m.user.bot).size.toLocaleString(),
+        // role member count functions
+        ...roles.map(role =>
+            () => `${role.name}: ${role.members.size.toLocaleString()}`)
+    ];
+    await guildStatsUpdate(guild, statFuncs);
+    setInterval(() => guildStatsUpdate(guild, statFuncs).catch(console.error),
+        STATS_UPDATE_INTERVAL);
+}
+
+/*
+    Function ran on an interval (STATS_UPDATE_INTERVAL) ms to update stats.
+*/
+async function guildStatsUpdate(guild, statFuncs) {
+    // ensure updated channel and member lists
+    await Promise.all([guild.members.fetch(), guild.channels.fetch()]); 
+    // get category with name specified by STATS_CATEGORY_NAME
     const category = guild.channels.cache.find(c => c.type == "GUILD_CATEGORY"
         && c.name.toLowerCase() == STATS_CATEGORY_NAME.toLowerCase()) ||
         // or create if one doesn't exist
@@ -77,49 +106,33 @@ async function guildStatsSetup(guild) {
                 deny: ["VIEW_CHANNEL"]
             }]
         });
-    // empty category, delete any channels inside it
+    // get channels under the stats category
+    const channels = guild.channels.cache
+        .filter(c => c.parent == category && c.type == "GUILD_VOICE");
+    // update stat readings (set voice channel names)
     await Promise.all(
-        guild.channels.cache.filter(c => c.parent == category && c != category)
-            .map(c => c.delete())
-    );
-    // ensure member list is populated
-    await guild.members.fetch();   
-    // setup voice channel to show total member count
-    statVoiceChannelSetup(guild, category, () => {
-        const members = guild.members.cache.filter(m => !m.user.bot);
-        return `Discord Members: ${members.size.toLocaleString()}`;
-    });
-    // get all roles for which a count should be displayed for
-    const roles = guild.roles.cache.filter(
-        role => STATS_COUNT_ROLES.includes(role.name.toLowerCase())
-    );
-    // setup voice channels to show member count for each specified role
-    await Promise.all(
-        roles.map(role => 
-            statVoiceChannelSetup(guild, category, () =>
-                `${role.name}: ${role.members.size.toLocaleString()}`
-            )
-        )
+        [...statFuncs.keys()].map(indexNum => {
+            const func = statFuncs[indexNum]; // func returns stat to display
+            if (indexNum >= channels.size) // if no channel for this stat func
+                return createLockedVoiceChannel(guild, func(), category);
+            return channels.at(indexNum).setName(func());
+        })
     );
 }
 
 /*
-    Setup a locked voice channel and use it's name to display a statistic.
-    updateHandler function is called every STATS_UPDATE_INTERVAL miliseconds and
-    the string it returns is used for the channel's name (display text).
+    Create a locked voice channel with set name and in specified category.
+    (used for creating channels showing stats in name)
 */
-async function statVoiceChannelSetup(guild, category, updateHandler) {
-    const channel = await guild.channels.create(updateHandler(), {
+function createLockedVoiceChannel(guild, name, category) {
+    return guild.channels.create(name, {
         type: "GUILD_VOICE",
         parent: category,
         permissionOverwrites: [{
             id: guild.id,
             deny: ["VIEW_CHANNEL"]
         }]
-    }
-    );
-    setInterval(() => channel.setName(updateHandler()).catch(console.error),
-        STATS_UPDATE_INTERVAL);
+    });
 }
 
 /*
