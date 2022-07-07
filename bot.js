@@ -108,7 +108,8 @@ async function guildStatsUpdate(guild, statFuncs) {
         });
     // get channels under the stats category
     const channels = guild.channels.cache
-        .filter(c => c.parent == category && c.type == "GUILD_VOICE");
+        .filter(c => c.parent == category && c.type == "GUILD_VOICE")
+        .sort((a, b) => a.position - b.position);
     // update stat readings (set voice channel names)
     await Promise.all(
         [...statFuncs.keys()].map(indexNum => {
