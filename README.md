@@ -5,7 +5,8 @@ the following:
 Filters `#news` channel to only allow news articles (posts containing a working
 web link) to be posted. A thread is automatically created for each article to
 allow for discussion to take place. The thread title uses the article's
-title (the OpenGraph title, falling back to the main title if not found).
+title (the OpenGraph title, falling back to the main title and then to the page
+URL itself).
 
 Keeps an updated count of how many members there are in certain roles and in
 the server as a whole. These stats are shown as locked voice channels.

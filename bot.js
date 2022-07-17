@@ -141,9 +141,8 @@ function createLockedVoiceChannel(guild, name, category) {
 */
 async function handleNewsMessage (message) {
     /*
-        The news channel can only contain links to news stories. A hyperlink
-        to a page containing an 'og:title' meta tag is considered a news story.
-        A message posted which does not contain this will be rejected.
+        The news channel can only contain links to news stories.
+        A message posted which does not contain a working link will be rejected.
     */
     const match = message.content.match(/https?:\/\/[^ "]{2,}/);
     const title = match && await fetchNewsTitle(match[0], message.author);
@@ -195,7 +194,7 @@ async function fetchNewsTitle (url) {
     if (title.length != 0 && title.text().length != 0) return title.text();
     console.log("Page %s also contains no title tag. Title not found.", url);
 
-    return null; // no title found
+    return url; // no title found, so use url
 }
 
 /**
