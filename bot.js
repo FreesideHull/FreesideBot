@@ -154,6 +154,8 @@ async function handleNewsMessage (message) {
         await message.startThread({
             // keep under thread limit
             name: title.substr(0, MAX_THREAD_TITLE_LENGTH)
+                .replaceAll("/", "\u2044").replaceAll(":", "\u02d0")
+            
         });
     } else {
     // not a news story, remove message
@@ -194,7 +196,7 @@ async function fetchNewsTitle (url) {
     if (title.length != 0 && title.text().length != 0) return title.text();
     console.log("Page %s also contains no title tag. Title not found.", url);
 
-    return url; // no title found, so use url
+    return url;
 }
 
 /**
