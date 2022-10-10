@@ -109,7 +109,7 @@ function apiServerSetup (bot, guild) {
 
 async function apiGetMessages (bot, guild, req, res) {
     const channel = (await guild.channels.fetch()).find(
-        c => c instanceof discord.TextChannel &&
+        c => c instanceof discord.BaseGuildTextChannel &&
             (!req.query.channel || req.query.channel == c.name)
     );
     if (!channel) {
