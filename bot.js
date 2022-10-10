@@ -1,6 +1,7 @@
-const discord = require("discord.js");
 const axios = require("axios");
 const cheerio = require("cheerio");
+const discord = require("discord.js");
+const express = require("express");
 require("console-stamp")(console); // add console timestamp and log level info
 
 // bot options (see README)
@@ -11,10 +12,18 @@ if (!process.env.DISCORD_TOKEN) {
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN.trim();
 const PUBLIC_REPLY_DECAY_TIME = process.env.PUBLIC_REPLY_DECAY_TIME || 120000;
 const MAX_THREAD_TITLE_LENGTH = 100;
+
+const API_SERVER_ENABLED = (process.env.REST_API_SERVER_ENABLED ||
+    "true").trim().match("^(true|on|y|1)") != null;
+const API_SERVER_HOST = (process.env.REST_API_SERVER_HOST ||
+    "0.0.0.0").trim();
+const API_SERVER_PORT = process.env.REST_API_SERVER_PORT || 8000;
+
 const STATS_ENABLED = (process.env.STATS_ENABLED || "true").trim()
     .match("^(true|on|y|1)") != null;
 const STATS_CATEGORY_NAME = (process.env.STATS_CATEGORY_NAME || "stats").trim();
-const STATS_UPDATE_INTERVAL = process.env.STATS_UPDATE_INTERVAL || 600000;
+const STATS_UPDATE_INTERVAL = Number(process.env.STATS_UPDATE_INTERVAL) ||
+    600000;
 const STATS_COUNT_ROLES = (process.env.STATS_COUNT_ROLES || "").split(",")
     .map(name => name.trim().toLowerCase())
     .filter(name => name.length != 0);
@@ -32,11 +41,12 @@ botSetup(DISCORD_TOKEN).catch((e) => {
 */
 async function botSetup (token) {
     const bot = new discord.Client({
-        intents: ["GUILDS", "GUILD_MESSAGES", "GUILD_MEMBERS", "DIRECT_MESSAGES"]
+        intents: ["GUILDS", "GUILD_MESSAGES", "GUILD_MEMBERS",
+            "DIRECT_MESSAGES"]
     });
 
     bot.on("messageCreate", m => {
-    // ignore own and other bots
+        // ignore own and other bots
         if (m.author.bot) return;
         // deal with server text channels only
         if (m.channel.type != "GUILD_TEXT") return;
@@ -44,22 +54,96 @@ async function botSetup (token) {
         if (m.channel.name == "news") return handleNewsMessage(m);
     });
 
-    bot.on("guildCreate", guild => {
-        console.log(`Joined a new guild '${guild.name}' (${guild.id}).`);
-        guildStatsSetup(guild).catch(console.error);
-    });
-
     bot.login(token);
-
     await new Promise((resolve, reject) => {
         bot.once("ready", resolve);
         bot.once("error", reject);
     });
     console.log("Bot is now online.");
     
-    await Promise.all(bot.guilds.cache.map(guild => guildStatsSetup(guild)));
-    
+    let guild = bot.guilds.cache.first();
+    if (!guild) {
+        console.warn("Waiting for bot to be added to a guild...");
+        guild = await new Promise(resolve => {
+            bot.once("guildCreate", resolve);
+        });
+        console.log(`Joined guild '${guild.name}' (${guild.id}).`);
+    }
+    await guildStatsSetup(guild);
+
+    await apiServerSetup(bot, guild);
     console.log("Ready.");
+}
+
+function apiServerSetup(bot, guild) {
+    if (!API_SERVER_ENABLED) return;
+    const server = express();
+    const listener = server.listen(API_SERVER_PORT, API_SERVER_HOST);
+
+    // basic logging of requests
+    server.use((req, res, next) => {
+        let requestedWith = req.get("User-Agent") || "";
+        if (requestedWith) requestedWith = " with " + requestedWith;
+        console.log("%s - Requested %s %s://%s:%i%s%s.", req.ip, req.method,
+            req.protocol, req.hostname, listener.address().port, req.url,
+            requestedWith);
+        next();
+    });
+
+    //server.use(express.urlencoded({ extended: true }));
+    // setup GET request handlers
+    server.get("/messages", (req, res) => apiGetMessages(bot, guild, req, res));
+    server.get("/events", (req, res) => apiGetEvents(bot, guild, req, res));
+    server.get("/member", (req, res) => apiGetMember(bot, guild, req, res));
+
+    // setup server listener
+    return new Promise((resolve, reject) => {
+        listener.once("listening", () => {
+            console.log("API server is listening on %s:%i.",
+                API_SERVER_HOST, listener.address().port);
+            resolve(server);
+        });
+        listener.once("error", e => reject(e));
+    });
+}
+
+async function apiGetMessages(bot, guild, req, res) {
+    const channel = (await guild.channels.fetch()).find(
+        c => (!req.query.channel || req.query.channel == c.name)
+            && c instanceof discord.TextChannel
+    );
+    if (!channel) {
+        res.status(404).send({error: "Text channel not found."});
+        return;
+    }
+    res.send(await channel.messages.fetch({
+        limit: Math.min(Number(req.query.limit) || 25, 500),
+        cache: false
+    }));
+}
+
+async function apiGetEvents(bot, guild, req, res) {
+    res.send(await guild.scheduledEvents.fetch());
+}
+
+async function apiGetMember(bot, guild, req, res) {
+    const member = (await guild.members.fetch()).find(
+        m => (req.query.id && req.query.id == m.id) ||
+            (req.query.tag && m.user.tag.startsWith(req.query.tag))
+    );
+    if (!member) {
+        res.status(404).send({error: "Member not found."});
+        return;
+    }    
+    res.send({
+        id: member.id,
+        tag: member.user.tag,
+        displayName: member.displayName,
+        // displayHexColor returns "#000000" if color not set, use null instead.
+        displayColor: member.displayColor == 0 ? null : member.displayHexColor,
+        // two avatar functions, what's the difference?
+        avatarUrl: member.displayAvatarURL() || member.avatarURL() 
+    });
 }
 
 /*
