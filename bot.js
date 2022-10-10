@@ -60,7 +60,7 @@ async function botSetup (token) {
         bot.once("error", reject);
     });
     console.log("Bot is now online.");
-    
+
     let guild = bot.guilds.cache.first();
     if (!guild) {
         console.warn("Waiting for bot to be added to a guild...");
@@ -75,7 +75,7 @@ async function botSetup (token) {
     console.log("Ready.");
 }
 
-function apiServerSetup(bot, guild) {
+function apiServerSetup (bot, guild) {
     if (!API_SERVER_ENABLED) return;
     const server = express();
     const listener = server.listen(API_SERVER_PORT, API_SERVER_HOST);
@@ -107,10 +107,10 @@ function apiServerSetup(bot, guild) {
     });
 }
 
-async function apiGetMessages(bot, guild, req, res) {
+async function apiGetMessages (bot, guild, req, res) {
     const channel = (await guild.channels.fetch()).find(
-        c => (!req.query.channel || req.query.channel == c.name)
-            && c instanceof discord.TextChannel
+        c => c instanceof discord.TextChannel &&
+            (!req.query.channel || req.query.channel == c.name)
     );
     if (!channel) {
         res.status(404).send({error: "Text channel not found."});
@@ -122,11 +122,11 @@ async function apiGetMessages(bot, guild, req, res) {
     }));
 }
 
-async function apiGetEvents(bot, guild, req, res) {
+async function apiGetEvents (bot, guild, req, res) {
     res.send(await guild.scheduledEvents.fetch());
 }
 
-async function apiGetMember(bot, guild, req, res) {
+async function apiGetMember (bot, guild, req, res) {
     const member = (await guild.members.fetch()).find(
         m => (req.query.id && req.query.id == m.id) ||
             (req.query.tag && m.user.tag.startsWith(req.query.tag))
@@ -151,7 +151,7 @@ async function apiGetMember(bot, guild, req, res) {
     members there are in certain roles, etc. are displayed as locked voice
     channels.
 */
-async function guildStatsSetup(guild) {
+async function guildStatsSetup (guild) {
     if (!STATS_ENABLED) return;
     console.log("Setting up guild statistics (server stats shown as locked " +
         `voice channels) on '${guild.name}' (${guild.id}).`); 
@@ -175,7 +175,7 @@ async function guildStatsSetup(guild) {
 /*
     Function ran on an interval (STATS_UPDATE_INTERVAL) ms to update stats.
 */
-async function guildStatsUpdate(guild, statFuncs) {
+async function guildStatsUpdate (guild, statFuncs) {
     // ensure updated channel and member lists
     await Promise.all([guild.members.fetch(), guild.channels.fetch()]); 
     // get category with name specified by STATS_CATEGORY_NAME
@@ -209,7 +209,7 @@ async function guildStatsUpdate(guild, statFuncs) {
     Create a locked voice channel with set name and in specified category.
     (used for creating channels showing stats in name)
 */
-function createLockedVoiceChannel(guild, name, category) {
+function createLockedVoiceChannel (guild, name, category) {
     return guild.channels.create(name, {
         type: "GUILD_VOICE",
         parent: category,
