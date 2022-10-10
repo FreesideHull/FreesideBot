@@ -110,6 +110,8 @@ function apiServerSetup (bot, guild) {
 async function apiGetMessages (bot, guild, req, res) {
     const channel = (await guild.channels.fetch()).find(
         c => c instanceof discord.BaseGuildTextChannel &&
+            // check everyone can view channel (don't expose private channels)
+            c.permissionsFor(guild.roles.everyone).has("VIEW_CHANNEL") &&
             (!req.query.channel || req.query.channel == c.name)
     );
     if (!channel) {
