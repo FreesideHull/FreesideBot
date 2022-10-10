@@ -13,11 +13,11 @@ const DISCORD_TOKEN = process.env.DISCORD_TOKEN.trim();
 const PUBLIC_REPLY_DECAY_TIME = process.env.PUBLIC_REPLY_DECAY_TIME || 120000;
 const MAX_THREAD_TITLE_LENGTH = 100;
 
-const API_SERVER_ENABLED = (process.env.REST_API_SERVER_ENABLED ||
+const API_SERVER_ENABLED = (process.env.API_SERVER_ENABLED ||
     "true").trim().match("^(true|on|y|1)") != null;
-const API_SERVER_HOST = (process.env.REST_API_SERVER_HOST ||
+const API_SERVER_HOST = (process.env.API_SERVER_HOST ||
     "0.0.0.0").trim();
-const API_SERVER_PORT = process.env.REST_API_SERVER_PORT || 8000;
+const API_SERVER_PORT = process.env.API_SERVER_PORT || 8000;
 
 const STATS_ENABLED = (process.env.STATS_ENABLED || "true").trim()
     .match("^(true|on|y|1)") != null;
