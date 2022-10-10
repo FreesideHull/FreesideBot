@@ -5,12 +5,13 @@
   "main": "bot.js",
   "author": "Lawrence Gibson",
   "dependencies": {
-    "axios": "^0.27.2",
+    "axios": "^1.1.2",
     "cheerio": "^1.0.0-rc.12",
     "console-stamp": "^3.0.6",
-    "discord.js": "^13.8.1"
+    "discord.js": "^13.11.0",
+    "express": "^4.18.2"
   },
   "devDependencies": {
-    "eslint": "^8.19.0"
+    "eslint": "^8.25.0"
   }
 }
