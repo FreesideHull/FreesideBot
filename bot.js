@@ -92,9 +92,11 @@ function apiServerSetup (bot, guild) {
 
     //server.use(express.urlencoded({ extended: true }));
     // setup GET request handlers
+    
     server.get("/messages", (req, res) => apiGetMessages(bot, guild, req, res));
     server.get("/events", (req, res) => apiGetEvents(bot, guild, req, res));
     server.get("/member", (req, res) => apiGetMember(bot, guild, req, res));
+    server.get(/\/.+/, (req, res) => res.redirect("/"));
 
     // setup server listener
     return new Promise((resolve, reject) => {
