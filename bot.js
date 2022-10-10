@@ -17,7 +17,7 @@ const API_SERVER_ENABLED = (process.env.API_SERVER_ENABLED ||
     "true").trim().match("^(true|on|y|1)") != null;
 const API_SERVER_HOST = (process.env.API_SERVER_HOST ||
     "0.0.0.0").trim();
-const API_SERVER_PORT = process.env.API_SERVER_PORT || 8000;
+const API_SERVER_PORT = Number(process.env.API_SERVER_PORT) || 8000;
 
 const STATS_ENABLED = (process.env.STATS_ENABLED || "true").trim()
     .match("^(true|on|y|1)") != null;
