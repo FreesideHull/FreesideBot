@@ -1,7 +1,9 @@
+const auth = require("basic-auth");
 const axios = require("axios");
 const cheerio = require("cheerio");
 const discord = require("discord.js");
 const express = require("express");
+const timingSafeCompare = require("tsscmp");
 require("console-stamp")(console); // add console timestamp and log level info
 
 // bot options (see README)
@@ -17,7 +19,9 @@ const API_SERVER_ENABLED = (process.env.API_SERVER_ENABLED ||
     "true").trim().match("^(true|on|y|1)") != null;
 const API_SERVER_HOST = (process.env.API_SERVER_HOST ||
     "0.0.0.0").trim();
-const API_SERVER_PORT = Number(process.env.API_SERVER_PORT) || 8000;
+const API_SERVER_PORT = Number(process.env.API_SERVER_PORT) || 8080;
+const API_SERVER_USERNAME = process.env.API_SERVER_USERNAME;
+const API_SERVER_PASSWORD = process.env.API_SERVER_PASSWORD;
 
 const STATS_ENABLED = (process.env.STATS_ENABLED || "true").trim()
     .match("^(true|on|y|1)") != null;
@@ -77,6 +81,7 @@ async function botSetup (token) {
 
 function apiServerSetup (bot, guild) {
     if (!API_SERVER_ENABLED) return;
+
     const server = express();
     const listener = server.listen(API_SERVER_PORT, API_SERVER_HOST);
 
@@ -84,15 +89,12 @@ function apiServerSetup (bot, guild) {
     server.use((req, res, next) => {
         let requestedWith = req.get("User-Agent") || "";
         if (requestedWith) requestedWith = " with " + requestedWith;
-        console.log("%s - Requested %s %s://%s:%i%s%s.", req.ip, req.method,
-            req.protocol, req.hostname, listener.address().port, req.url,
-            requestedWith);
+        console.log("%s - Requested %s %s%s.", req.ip, req.method,
+            req.url, requestedWith);
         next();
     });
 
-    //server.use(express.urlencoded({ extended: true }));
     // setup GET request handlers
-    
     server.get("/messages", (req, res) => apiGetMessages(bot, guild, req, res));
     server.get("/events", (req, res) => apiGetEvents(bot, guild, req, res));
     server.get("/member", (req, res) => apiGetMember(bot, guild, req, res));
@@ -109,7 +111,25 @@ function apiServerSetup (bot, guild) {
     });
 }
 
+function apiIsUnauthenticated(req, res) {
+    if (API_SERVER_USERNAME && API_SERVER_PASSWORD) {
+        const creds = auth(req);
+        if (!creds || !timingSafeCompare(creds.name, API_SERVER_USERNAME) ||
+            !timingSafeCompare(creds.pass, API_SERVER_PASSWORD)) {
+
+            res.setHeader("WWW-Authenticate", "Basic");
+            res.status(401).send({
+                error: "Authentication failed. Check username and password."
+            });
+            return true;
+        }
+    }
+    return false;
+}
+
 async function apiGetMessages (bot, guild, req, res) {
+    if (apiIsUnauthenticated(req, res)) return;
+
     const channel = (await guild.channels.fetch()).find(
         c => c instanceof discord.BaseGuildTextChannel &&
             // check everyone can view channel (don't expose private channels)
@@ -127,10 +147,14 @@ async function apiGetMessages (bot, guild, req, res) {
 }
 
 async function apiGetEvents (bot, guild, req, res) {
+    if (apiIsUnauthenticated(req, res)) return;
+
     res.send(await guild.scheduledEvents.fetch());
 }
 
 async function apiGetMember (bot, guild, req, res) {
+    if (apiIsUnauthenticated(req, res)) return;
+
     const member = (await guild.members.fetch()).find(
         m => (req.query.id && req.query.id == m.id) ||
             (req.query.tag && m.user.tag.startsWith(req.query.tag))
@@ -138,7 +162,8 @@ async function apiGetMember (bot, guild, req, res) {
     if (!member) {
         res.status(404).send({error: "Member not found."});
         return;
-    }    
+    }
+
     res.send({
         id: member.id,
         tag: member.user.tag,
@@ -157,6 +182,7 @@ async function apiGetMember (bot, guild, req, res) {
 */
 async function guildStatsSetup (guild) {
     if (!STATS_ENABLED) return;
+
     console.log("Setting up guild statistics (server stats shown as locked " +
         `voice channels) on '${guild.name}' (${guild.id}).`); 
     // get roles specified in by name in STATS_COUNT_ROLES

@@ -23,7 +23,11 @@ Bot settings are passed through environment variables.
 `API_SERVER_HOST=` Host to open API server on.
 [Default: 0.0.0.0]  
 `API_SERVER_PORT=` Port to open API server on.
-[Default: 8000]  
+[Default: 8080]  
+`API_SERVER_USERNAME=` Username required to authenticate to the API.
+[Optional]  
+`API_SERVER_PASSWORD=` Password required to authenticate to the API.
+[Optional]  
 `STATS_ENABLED=`Enable guild statistics (member count display in the form of
 locked voice channels).
 [Default: true]  
@@ -67,3 +71,6 @@ All endpoints return data in JSON format. Summary of endpoints:
 - `GET /messages?channel=general` - Get message feed from text channel.
 - `GET /member?tag=YourName#1234` - Get member info by tag.
 - `GET /member?id=123456789` - Get member info by discord user ID.
+
+Use the "Basic" HTTP Authentication scheme to access API endpoints when both
+`API_SERVER_USERNAME` and `API_SERVER_PASSWORD` are set.
