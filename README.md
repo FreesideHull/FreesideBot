@@ -49,8 +49,8 @@ You will need a file to set environment variables in. Create one called `./env`,
 git clone https://github.com/FreesideHull/FreesideBot
 cd ./FreesideBot
 docker build -t freesidebot .
-# change port forwarding from 8000:8000 if you've used different port
-docker run -d --restart=always -p 8000:8000 --name freesidebot \
+# change port forwarding from 8080:8080 if you've used different port
+docker run -d --restart=always -p 8080:8080 --name freesidebot \
     --env-file=./env freesidebot
 ```
 
