@@ -1,5 +1,5 @@
 # Freeside Discord Bot
-Discord bot as used on https://discord.freeside.co.uk. The bot currently does
+Discord bot as used on https://discord.freeside.uk. The bot currently does
 the following:
 
 Filters `#news` channel to only allow news articles (posts containing a working
@@ -53,6 +53,7 @@ docker build -t freesidebot .
 docker run -d --restart=always -p 8080:8080 --name freesidebot \
     --env-file=./env freesidebot
 ```
+Or you can use the public container from [here](https://hub.docker.com/r/freesidehull/freesidebot)
 
 ### Manual Install
 ```sh
