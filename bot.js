@@ -262,17 +262,16 @@ async function handleNewsMessage (message) {
     const title = match && await fetchNewsTitle(match[0], message.author);
 
     if (title) {
-    // message determined to be a news story
+        // message determined to be a news story
         console.log("Creating news discussion thread for %s named '%s'.",
             message.author.tag, title);
         await message.startThread({
             // keep under thread limit
             name: title.substr(0, MAX_THREAD_TITLE_LENGTH)
                 .replaceAll("/", "\u2044").replaceAll(":", "\u02d0")
-            
         });
     } else {
-    // not a news story, remove message
+        // not a news story, remove message
         await removeMessage(message, "Please only post news articles. " +
             "Discussion on news stories should take place inside their " +
             "designated thread which will be created automatically.");
@@ -288,29 +287,31 @@ async function fetchNewsTitle (url) {
     const response = await axios.get(url, {
         headers: {
             /*
-                Use Chrome / Windows 10 user agent as a precaution against
-                bad news sites which may reject requests due to user agent.
+                Some sites omit OpenGraph tags if bot user agent not used.
             */
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
-                "AppleWebKit/537.36 (KHTML, like Gecko) " +
-                "Chrome/102.0.5005.115 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (compatible; Discordbot/2.0; " +
+                "+https://discordapp.com)"
         }
     }).catch(e => console.log("Request for %s failed. %s", url, e.message));
     if (!response) return null; // request failed
 
     const $ = cheerio.load(response.data); // parse response HTML
-
-    // first try using opengraph title
-    const metaOgTitle = $("meta[property=og:title],meta[name=og:title]");
-    if (metaOgTitle.length != 0) return metaOgTitle.attr("content");
-    console.log("Page %s contains no OpenGraph title tag.", url);
-
-    // no opengraph title tag, so use the main title
-    const title = $("title");
-    if (title.length != 0 && title.text().length != 0) return title.text();
-    console.log("Page %s also contains no title tag. Title not found.", url);
-
-    return url;
+    let title = url;
+    const metaOgTitleElement = $("meta[property=og:title],meta[name=og:title]");
+    if (metaOgTitleElement.length != 0) {
+        title = metaOgTitleElement.attr("content")
+    } else {
+        console.log("Page %s contains no OpenGraph title tag.", url);
+        const titleElement = $("title");
+        if (titleElement.length != 0 && titleElement.text().length != 0) {
+            title = titleElement.text();
+        } else {
+            console.log("Page %s also contains no title tag. Title not found.",
+                url);
+        } 
+    }
+    // short or removal of unnecessary prefixes...
+     return title.replace(/^From the (.+) community on Reddit:/, "r/$1:");
 }
 
 /**
