@@ -268,7 +268,6 @@ async function handleNewsMessage (message) {
         await message.startThread({
             // keep under thread limit
             name: title.substr(0, MAX_THREAD_TITLE_LENGTH)
-                .replaceAll("/", "\u2044").replaceAll(":", "\u02d0")
         });
     } else {
         // not a news story, remove message
