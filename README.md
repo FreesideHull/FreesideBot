@@ -1,5 +1,5 @@
 # Freeside Discord Bot
-Discord bot as used on https://discord.freeside.uk. The bot currently does
+Discord bot as used on https://discord.freeside.co.uk. The bot currently does
 the following:
 
 Filters `#news` channel to only allow news articles (posts containing a working
